@@ -1,6 +1,8 @@
 import os
 import tkinter as tk
 from tkinter import ttk
+import shutil
+from tkinter import messagebox
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import ctypes
@@ -64,6 +66,12 @@ class MemoryReader:
         back_btn = tk.Button(top_frame, text="⬅ Back", command=self.go_back,
                              bg="#444", fg="white")
         back_btn.pack(side="right", padx=6)
+
+        delete_btn = tk.Button(top_frame, text="🗑 Delete",
+                       command=self.delete_selected,
+                       bg="#aa3333", fg="white")
+
+        delete_btn.pack(side="right", padx=6)
 
         cache_btn = tk.Button(top_frame, text="Cache folder (background)",
                               command=lambda: threading.Thread(
@@ -140,7 +148,6 @@ class MemoryReader:
         if not sel:
             return
         text = self.large_list.get(sel[0])
-        # stored as "NAME ||| PATH"
         if " ||| " in text:
             _, path = text.split(" ||| ", 1)
             if os.path.isdir(path):
@@ -316,7 +323,6 @@ class MemoryReader:
         """
         base = self.current_path
         self.start_loading("Caching: " + base)
-        # walk and cache file sizes; aggregate folder sizes as we go
         local_file_count = 0
         for dirpath, dirs, files in os.walk(base):
             for f in files:
@@ -328,10 +334,8 @@ class MemoryReader:
                         local_file_count += 1
                 except Exception:
                     continue
-            # optional: update status occasionally
             if local_file_count % 500 == 0:
                 self.root.after(0, lambda c=local_file_count: self.status_label.config(text=f"Cached files: {c}"))
-        # after file cache, compute folder aggregates in parallel for immediate children
         try:
             entries = os.listdir(base)
         except Exception:
@@ -350,7 +354,6 @@ class MemoryReader:
 
     # ---------- Faster folder-size using scandir (iterative) ----------
     def get_folder_size(self, path):
-        # return cached if present
         if path in self.cache:
             return self.cache[path]
 
@@ -387,6 +390,61 @@ class MemoryReader:
             size /= 1024
         return f"{size:.2f} PB"
 
+
+
+    def perform_delete(self, path):
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+
+            # Remove from cache
+            if path in self.cache:
+                del self.cache[path]
+
+            self.load_directories(self.current_path)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete:\n{e}")
+
+
+    def delete_selected(self):
+        selected = self.tree.selection()
+
+        if not selected:
+            sel = self.large_list.curselection()
+            if sel:
+                text = self.large_list.get(sel[0])
+                if " ||| " in text:
+                    _, path = text.split(" ||| ", 1)
+                    self.confirm_delete(path)
+            return
+
+        item = selected[0]
+        tags = self.tree.item(item, "tags")
+
+        if not tags:
+            return
+
+        path = tags[0]
+        self.confirm_delete(path)
+
+    def confirm_delete(self, path):
+        name = os.path.basename(path)
+
+        result = messagebox.askyesno(
+                "Confirm Delete",
+                f"Are you sure you want to delete:\n\n{name}\n\nThis cannot be undone."
+            )
+        # Block deletion of system folders
+        if path.startswith("C:\\Windows") or path.startswith("C:\\Program Files"):
+            messagebox.showwarning("Blocked", "Cannot delete system folders.")
+            return
+           
+        if result:
+            self.perform_delete(path)
+
     def start_loading(self, text):
         self.path_label.config(text=text)
         try:
@@ -411,4 +469,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = MemoryReader(root)
     root.mainloop()
-    
