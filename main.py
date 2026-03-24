@@ -9,7 +9,7 @@ import ctypes
 import sys
 import math
 
-# ---------- ADMIN CHECK ----------
+
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -23,7 +23,6 @@ def relaunch_as_admin():
     )
     sys.exit()
 
-# ---------- APP ----------
 class MemoryReader:
     def __init__(self, root):
         self.root = root
@@ -40,7 +39,7 @@ class MemoryReader:
         self.setup_ui()
         self.load_directories(self.current_path)
 
-    # ---------- UI ----------
+
     def setup_ui(self):
         self.root.configure(bg="#1e1e1e")
         style = ttk.Style()
@@ -55,7 +54,7 @@ class MemoryReader:
                         background="#333333",
                         foreground="white")
 
-        # Top frame: path, back, cache button
+       
         top_frame = tk.Frame(self.root, bg="#1e1e1e")
         top_frame.pack(fill="x", padx=8, pady=6)
 
@@ -79,15 +78,14 @@ class MemoryReader:
                               bg="#2d6b2d", fg="white")
         cache_btn.pack(side="right", padx=6)
 
-        # Progress bar
+      
         self.progress = ttk.Progressbar(self.root, mode="indeterminate")
         self.progress.pack(fill="x", padx=10, pady=4)
 
-        # Middle: left = tree, right = largest & info
         middle = tk.Frame(self.root, bg="#1e1e1e")
         middle.pack(fill="both", expand=True, padx=8, pady=6)
 
-        # Tree (left)
+
         left_frame = tk.Frame(middle, bg="#1e1e1e")
         left_frame.pack(side="left", fill="both", expand=True)
 
@@ -100,17 +98,15 @@ class MemoryReader:
         self.tree.pack(fill="both", expand=True)
         self.tree.bind("<Double-1>", self.on_click)
 
-        # Right panel (largest list & treemap)
+       
         right_frame = tk.Frame(middle, width=380, bg="#1e1e1e")
         right_frame.pack(side="right", fill="y")
 
-        # Treemap canvas
         self.canvas = tk.Canvas(right_frame, bg="#111111", height=220)
         self.canvas.pack(fill="x", padx=6, pady=6)
-        # root binding resize to redraw treemap
+ 
         self.canvas.bind("<Configure>", lambda e: self.redraw_treemap())
 
-        # Largest items label + listbox
         lbl = tk.Label(right_frame, text="Largest (scanned items)",
                        bg="#1e1e1e", fg="white")
         lbl.pack(anchor="w", padx=6)
@@ -119,11 +115,11 @@ class MemoryReader:
         self.large_list.pack(fill="both", padx=6, pady=6, expand=True)
         self.large_list.bind("<Double-1>", self.on_largest_double)
 
-        # Bottom status
+    
         self.status_label = tk.Label(self.root, text="Ready", bg="#1e1e1e", fg="white")
         self.status_label.pack(fill="x", padx=8, pady=4)
 
-    # ---------- Navigation ----------
+   
     def go_back(self):
         parent = os.path.dirname(self.current_path.rstrip(os.sep))
         if parent and parent != self.current_path:
@@ -154,7 +150,7 @@ class MemoryReader:
                 self.current_path = path
                 self.load_directories(path)
 
-    # ---------- Loading / Scanning ----------
+    
     def load_directories(self, path):
         self.start_loading("Scanning: " + path)
         self.tree.delete(*self.tree.get_children())
@@ -164,8 +160,8 @@ class MemoryReader:
         threading.Thread(target=self.scan_directories, args=(path,), daemon=True).start()
 
     def scan_directories(self, path):
-        results = []   # tuples (name, size, full_path, is_dir)
-        all_files = [] # list of (name, size, full_path) to compute largest files if needed
+        results = []   
+        all_files = [] 
 
         try:
             items = os.listdir(path)
@@ -193,7 +189,7 @@ class MemoryReader:
                 except Exception:
                     continue
 
-        # collect folder futures (map each future carefully)
+       
         for future, (item, full_path) in futures.items():
             try:
                 size = future.result()
@@ -202,8 +198,7 @@ class MemoryReader:
             except Exception:
                 continue
 
-        # Optionally walk deeper to gather files for largest list in current path
-        # but only if the folder is not huge — we will go one level deeper for all files
+
         for dirpath, dirs, files in os.walk(path):
             for f in files:
                 try:
@@ -213,39 +208,33 @@ class MemoryReader:
                 except Exception:
                     continue
 
-        # Prepare largest list: show largest **folders** first (scanned) then files
-        # We'll show top 12 items sorted by size
-        combined = [(n, s, p, isdir) for (n, s, p, isdir) in results]  # already has folders+files
+
+        combined = [(n, s, p, isdir) for (n, s, p, isdir) in results] 
         combined_files = list(all_files)
         combined_files_sorted = sorted(combined_files, key=lambda x: x[1], reverse=True)
-        largest_files = combined_files_sorted[:50]  # used for treemap & drilldown files
+        largest_files = combined_files_sorted[:50]  
 
         results.sort(key=lambda x: x[1], reverse=True)
         self.root.after(0, lambda: self.display_results(results, largest_files))
 
     def display_results(self, results, largest_files):
-        # populate tree
         for name, size, path, is_dir in results:
             tag = path
-            # tag with path for click navigation
             self.tree.insert("", "end", values=(name, self.format_size(size)), tags=(tag,))
 
-        # largest list: show top scanned folders first
+    
         folder_items = [ (n,s,p) for (n,s,p,isdir) in results if isdir ]
         top_folders = folder_items[:12]
         self.large_list.delete(0, tk.END)
         for name, size, path in top_folders:
-            # store path hidden in the string so double-click finds it
             display = f"{name} - {self.format_size(size)} ||| {path}"
             self.large_list.insert(tk.END, display)
 
-        # treemap: use largest_files (files found within this branch)
         self.treemap_items = [(name, size, fp) for (name, size, fp) in largest_files]
         self.draw_treemap(self.treemap_items)
 
         self.stop_loading(f"{len(results)} items | {self.current_path}")
 
-    # ---------- Treemap & interactivity ----------
     def draw_treemap(self, items):
         self.canvas.delete("all")
         self.rect_map.clear()
@@ -260,21 +249,21 @@ class MemoryReader:
         height = max(50, self.canvas.winfo_height())
         x = 0
 
-        # simple 1-row treemap (proportional width)
+    
         for name, size, full_path in items:
             w = max(2, int(width * (size / total_size)))
             color = "#" + hex(abs(hash(full_path)) % 0xFFFFFF)[2:].zfill(6)
             rect = self.canvas.create_rectangle(x, 0, x + w, height, fill=color, outline="")
-            # save mapping
+           
             self.rect_map[rect] = (full_path, name, size)
-            # attach bindings
+          
             self.canvas.tag_bind(rect, "<Enter>", lambda e, r=rect: self.on_rect_enter(e, r))
             self.canvas.tag_bind(rect, "<Leave>", lambda e, r=rect: self.on_rect_leave(e, r))
             self.canvas.tag_bind(rect, "<Button-1>", lambda e, r=rect: self.on_rect_click(e, r))
             x += w
 
     def redraw_treemap(self):
-        # redraw using last treemap items
+      
         if hasattr(self, "treemap_items"):
             self.draw_treemap(self.treemap_items)
 
@@ -288,7 +277,7 @@ class MemoryReader:
 
     def on_rect_click(self, event, rect_id):
         path, name, size = self.rect_map.get(rect_id, ("", "", 0))
-        # if rectangle represents a file, navigate to its parent folder
+
         if os.path.isfile(path):
             folder = os.path.dirname(path)
             if os.path.isdir(folder):
@@ -316,7 +305,6 @@ class MemoryReader:
                 pass
             self.tooltip = None
 
-    # ---------- Caching helpers ----------
     def cache_current_branch(self):
         """Walk current_path and fill file_cache & cache with sizes.
            This runs in background, may take a long time on big drives.
@@ -352,7 +340,6 @@ class MemoryReader:
                 continue
         self.root.after(0, lambda: self.stop_loading(f"Cached {local_file_count} files | {base}"))
 
-    # ---------- Faster folder-size using scandir (iterative) ----------
     def get_folder_size(self, path):
         if path in self.cache:
             return self.cache[path]
@@ -380,7 +367,6 @@ class MemoryReader:
         self.cache[path] = total
         return total
 
-    # ---------- Utilities ----------
     def format_size(self, size):
         if size is None:
             return "—"
@@ -399,7 +385,6 @@ class MemoryReader:
             elif os.path.isdir(path):
                 shutil.rmtree(path)
 
-            # Remove from cache
             if path in self.cache:
                 del self.cache[path]
 
@@ -437,7 +422,7 @@ class MemoryReader:
                 "Confirm Delete",
                 f"Are you sure you want to delete:\n\n{name}\n\nThis cannot be undone."
             )
-        # Block deletion of system folders
+       
         if path.startswith("C:\\Windows") or path.startswith("C:\\Program Files"):
             messagebox.showwarning("Blocked", "Cannot delete system folders.")
             return
@@ -461,7 +446,7 @@ class MemoryReader:
         self.path_label.config(text=text)
         self.status_label.config(text="Ready")
 
-# ---------- MAIN ----------
+
 if __name__ == "__main__":
     if not is_admin():
         relaunch_as_admin()
