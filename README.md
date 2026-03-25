@@ -65,4 +65,4 @@ A Python-based desktop application that analyzes disk usage, visualizes file siz
 ## ▶️ How to Run
 
 ```bash
-python memory_analyzer.py
+python main.py
