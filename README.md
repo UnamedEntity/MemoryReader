@@ -50,7 +50,9 @@ A Python-based desktop application that analyzes disk usage, visualizes file siz
 - Python 3.8+
 - Windows OS (uses `ctypes` for admin privileges)
 
-### Standard Library Only (No external dependencies)
+### Running from source (no pip packages)
+
+The app uses only the Python standard library:
 
 - `tkinter`
 - `os`
@@ -60,9 +62,48 @@ A Python-based desktop application that analyzes disk usage, visualizes file siz
 - `ctypes`
 - `sys`
 
+To ship a standalone **`.exe`**, use **PyInstaller** from `requirements.txt` and follow [Building the desktop app](#building-the-desktop-app-windows) below.
+
 ---
 
 ## ▶️ How to Run
 
+### From source
+
 ```bash
 python main.py
+```
+
+Windows will prompt for administrator approval (or the app will relaunch elevated) so it can scan protected locations.
+
+### Desktop app (built executable)
+
+After [building](#building-the-desktop-app-windows), run:
+
+```text
+dist\MemoryReader.exe
+```
+
+The packaged executable is a single file, runs without a console window, and requests admin rights via its application manifest (UAC).
+
+---
+
+## 🏗️ Building the desktop app (Windows)
+
+1. Install Python with Tkinter (the default **python.org** Windows installer includes it).
+2. From the project folder:
+
+   ```powershell
+   .\build.ps1
+   ```
+
+   Or manually:
+
+   ```powershell
+   python -m pip install -r requirements.txt
+   python -m PyInstaller --noconfirm MemoryReader.spec
+   ```
+
+3. Output: **`dist\MemoryReader.exe`** — share or ship this file (or zip it). PyInstaller also writes a `build\` folder; you can ignore or delete it after a successful build.
+
+Configuration lives in **`MemoryReader.spec`** (one-file bundle, no console, `uac_admin` enabled).
