@@ -49,6 +49,7 @@ A Python-based desktop application that analyzes disk usage, visualizes file siz
 
 - Python 3.8+
 - Windows OS (uses `ctypes` for admin privileges)
+- (For installer creation) [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ### Running from source (no pip packages)
 
@@ -62,7 +63,8 @@ The app uses only the Python standard library:
 - `ctypes`
 - `sys`
 
-To ship a standalone **`.exe`**, use **PyInstaller** from `requirements.txt` and follow [Building the desktop app](#building-the-desktop-app-windows) below.
+To ship a standalone **desktop `.exe`**, use **PyInstaller** from `requirements.txt` and follow [Building the desktop app](#building-the-desktop-app-windows) below.
+To ship a **GUI installer (`Setup.exe`)**, follow [Building the Windows installer](#building-the-windows-installer-gui-setup).
 
 ---
 
@@ -107,3 +109,36 @@ The packaged executable is a single file, runs without a console window, and req
 3. Output: **`dist\MemoryReader.exe`** — share or ship this file (or zip it). PyInstaller also writes a `build\` folder; you can ignore or delete it after a successful build.
 
 Configuration lives in **`MemoryReader.spec`** (one-file bundle, no console, `uac_admin` enabled).
+
+---
+
+## Building the Windows installer (GUI Setup)
+
+The project now includes an Inno Setup script (`installer.iss`) that creates a standard Windows installer wizard GUI.
+
+### Option A: one command
+
+```powershell
+.\build-installer.ps1
+```
+
+This will:
+
+1. Build `dist\MemoryReader.exe` with PyInstaller
+2. Compile `installer.iss` with Inno Setup (`ISCC.exe`)
+3. Produce `installer-output\MemoryAnalyzerSetup.exe`
+
+### Option B: manual installer build
+
+```powershell
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+```
+
+If Inno Setup is installed in `C:\Program Files\Inno Setup 6`, use that path instead.
+
+### What the installer includes
+
+- Installs `MemoryReader.exe` to `Program Files\Memory Analyzer`
+- Adds a Start Menu shortcut
+- Optional desktop shortcut
+- Uninstaller entry in Windows Apps list
