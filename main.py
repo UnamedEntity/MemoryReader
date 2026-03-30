@@ -450,7 +450,6 @@ class MemoryReader:
 if __name__ == "__main__":
     if not is_admin():
         relaunch_as_admin()
-
     root = tk.Tk()
     app = MemoryReader(root)
     root.mainloop()
